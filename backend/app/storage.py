@@ -1,13 +1,12 @@
 """
-Storage en SQLite (Fase 4 — antes era JSON plano por archivo).
+SQLite storage.
 
-La interfaz pública es exactamente la misma que en la versión JSON
-(create_session, load_session, append_message, mark_session_closed,
-get_or_create_profile, load_profile, update_profile_summary), así que
-chat.py no necesitó ningún cambio al migrar.
+Public interface used by chat.py: create_session, load_session,
+append_message, mark_session_closed, get_or_create_profile,
+authenticate_profile, load_profile, update_profile_summary.
 
-Se sigue identificando a la persona por username + password (hasheada
-con PBKDF2-HMAC-SHA256 y salt, nunca en texto plano).
+People are identified by username + password (hashed with
+PBKDF2-HMAC-SHA256 and a salt, never stored in plain text).
 """
 
 import hashlib
@@ -26,7 +25,7 @@ PBKDF2_ITERATIONS = 260_000
 
 
 class WrongPasswordError(Exception):
-    """Se lanza cuando el username existe pero la contraseña no matchea."""
+    """Raised when the username exists but the password doesn't match."""
 
 
 def normalize_username(username: str) -> str:
@@ -100,12 +99,18 @@ def init_db() -> None:
 init_db()
 
 
-# ---------- Perfiles ----------
+# ---------- Profiles ----------
 
 
 def get_or_create_profile(
     username: str, password: str, name: str, age: int, city: Optional[str]
 ) -> dict:
+    """
+    Creates a new profile, or if the username already exists, verifies
+    the password and updates name/age/city with the latest submitted
+    values (can change between visits) while preserving the accumulated
+    profile_summary. Used by the signup flow.
+    """
     conn = _connect()
     row = conn.execute(
         "SELECT * FROM profiles WHERE username = ?", (username,)
@@ -149,6 +154,21 @@ def get_or_create_profile(
     return profile
 
 
+def authenticate_profile(username: str, password: str) -> Optional[dict]:
+    """
+    Verifies username + password WITHOUT creating or modifying anything
+    (unlike get_or_create_profile, which also creates new profiles).
+    Returns the profile if the password matches, or None if the user
+    doesn't exist or the password is wrong. Used by the login flow.
+    """
+    profile = load_profile(username)
+    if profile is None:
+        return None
+    if not _verify_password(password, profile["password_salt"], profile["password_hash"]):
+        return None
+    return profile
+
+
 def load_profile(username: str) -> Optional[dict]:
     conn = _connect()
     row = conn.execute(
@@ -167,11 +187,11 @@ def update_profile_summary(username: str, new_summary: str) -> None:
     conn.commit()
     if cur.rowcount == 0:
         conn.close()
-        raise ValueError(f"Perfil inexistente: {username}")
+        raise ValueError(f"Profile not found: {username}")
     conn.close()
 
 
-# ---------- Sesiones ----------
+# ---------- Sessions ----------
 
 
 def create_session(
@@ -218,7 +238,7 @@ def append_message(session_id: str, role: str, content: str) -> None:
     ).fetchone()
     if not exists:
         conn.close()
-        raise ValueError(f"Sesión inexistente: {session_id}")
+        raise ValueError(f"Session not found: {session_id}")
     conn.execute(
         "INSERT INTO messages (session_id, role, content, ts) VALUES (?, ?, ?, ?)",
         (session_id, role, content, datetime.now(timezone.utc).isoformat()),
@@ -235,21 +255,5 @@ def mark_session_closed(session_id: str) -> None:
     conn.commit()
     if cur.rowcount == 0:
         conn.close()
-        raise ValueError(f"Sesión inexistente: {session_id}")
+        raise ValueError(f"Session not found: {session_id}")
     conn.close()
-
-
-
-def authenticate_profile(username: str, password: str) -> Optional[dict]:
-    """
-    Verifica username + password SIN crear ni modificar nada (a diferencia
-    de get_or_create_profile, que además crea perfiles nuevos). Devuelve
-    el perfil si la contraseña matchea, o None si el usuario no existe o
-    la contraseña es incorrecta. Lo usa el flujo de login.
-    """
-    profile = load_profile(username)
-    if profile is None:
-        return None
-    if not _verify_password(password, profile["password_salt"], profile["password_hash"]):
-        return None
-    return profile

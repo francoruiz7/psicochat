@@ -12,11 +12,11 @@ export default function App() {
     sessionRef.current = session;
   }, [session]);
 
-  // Respaldo: si la persona cierra la pestaña/navegador sin tocar el
-  // botón "Finalizar sesión de hoy", igual intentamos avisarle al backend
-  // para que genere el resumen de esa sesión. sendBeacon funciona incluso
-  // cuando la página se está por descargar (a diferencia de un fetch
-  // normal, que el navegador puede cortar a mitad de camino).
+  // Fallback: if the person closes the tab/browser without pressing the
+  // "Finalizar sesión de hoy" button, we still try to notify the backend
+  // so it generates that session's summary. sendBeacon works even while
+  // the page is being unloaded (unlike a regular fetch, which the
+  // browser can cut off mid-flight).
   useEffect(() => {
     function handlePageHide() {
       const current = sessionRef.current;

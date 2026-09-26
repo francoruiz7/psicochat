@@ -1,11 +1,11 @@
 """
-Generación y actualización del perfil evolutivo (resumen acumulado entre
-sesiones).
+Generates and updates the evolving profile (summary accumulated across
+sessions).
 
-Se ejecuta una sola vez por sesión, al cerrarla (ver endpoint
-POST /session/close en chat.py) — no en cada mensaje. Usa el modelo
-auxiliar (más barato) porque no necesita la misma profundidad
-conversacional que el chat principal, solo consolidar información.
+Runs once per session, when it's closed (see the POST /session/close
+endpoint in chat.py) — not on every message. Uses the auxiliary (cheaper)
+model because it doesn't need the same conversational depth as the main
+chat, just consolidation of information.
 """
 
 from openai import OpenAI
@@ -14,6 +14,9 @@ from .config import OPENAI_API_KEY, OPENAI_AUXILIARY_MODEL
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# NOTE: this prompt is functional — it must produce a Spanish-language
+# summary so it integrates naturally into a Spanish-speaking
+# conversation, so it's kept in Spanish rather than translated.
 SUMMARY_INSTRUCTIONS = """\
 Vas a leer el resumen acumulado de sesiones anteriores (puede estar vacío,
 si es la primera sesión) y la transcripción completa de la sesión de hoy,
@@ -49,8 +52,8 @@ def _format_transcript(messages: list[dict]) -> str:
 
 def generate_summary(previous_summary: str, session_messages: list[dict]) -> str:
     """
-    Genera el resumen actualizado a partir del resumen previo (puede ser
-    string vacío) y los mensajes de la sesión que se está cerrando.
+    Generates the updated summary from the previous summary (can be an
+    empty string) and the messages of the session being closed.
     """
     transcript = _format_transcript(session_messages)
 

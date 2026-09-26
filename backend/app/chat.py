@@ -28,6 +28,8 @@ router = APIRouter()
 
 client = OpenAI(api_key=OPENAI_API_KEY, timeout=OPENAI_REQUEST_TIMEOUT_SECONDS)
 
+# User-facing strings (shown in the Spanish-language UI) — kept in
+# Spanish on purpose, unlike the code comments in this file.
 BLOCKED_MINOR_MESSAGE = (
     "Este espacio está pensado para personas mayores de 18 años. "
     "Lamentablemente no podemos iniciar el proceso. "
@@ -62,7 +64,7 @@ def onboarding(payload: OnboardingRequest):
     existing_profile = storage.load_profile(username)
 
     if existing_profile:
-        # ---- Flujo LOGIN: ya existe la cuenta ----
+        # ---- LOGIN flow: account already exists ----
         authenticated = storage.authenticate_profile(username, payload.password)
         if authenticated is None:
             return OnboardingResponse(
@@ -78,7 +80,7 @@ def onboarding(payload: OnboardingRequest):
             allowed=True, session_id=session_id, name=authenticated["name"]
         )
 
-    # ---- Flujo SIGNUP: cuenta nueva ----
+    # ---- SIGNUP flow: new account ----
     if payload.name is None or payload.age is None:
         return OnboardingResponse(
             allowed=False, message=MISSING_SIGNUP_DATA_MESSAGE, retry=True
@@ -103,6 +105,11 @@ def onboarding(payload: OnboardingRequest):
 
 
 def _build_call_context(session_id: str):
+    """
+    Prepares everything needed to call OpenAI: the system prompt (with
+    the profile summary if any) and the messages in OpenAI's format.
+    Shared by both /chat and /chat/stream to avoid duplicating logic.
+    """
     session = storage.load_session(session_id)
     profile_summary = None
     username = session.get("username")
@@ -120,7 +127,7 @@ def _build_call_context(session_id: str):
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest):
-    """Endpoint sin streaming — más simple para probar con curl/Postman."""
+    """Non-streaming endpoint — simpler to test with curl/Postman."""
     session = storage.load_session(payload.session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
@@ -152,11 +159,12 @@ def chat(payload: ChatRequest):
 @router.post("/chat/stream")
 def chat_stream(payload: ChatRequest):
     """
-    Igual que /chat pero devuelve la respuesta como Server-Sent Events,
-    token a token.
+    Same as /chat but returns the response as Server-Sent Events,
+    token by token.
 
-    Eventos: "risk" (una vez, si corresponde), "token" (uno por
-    fragmento), "error" (si algo falla), "done" (al finalizar).
+    Emitted events: "risk" (once, if applicable), "token" (one per
+    generated fragment), "error" (if something fails), "done" (at the
+    end).
     """
     session = storage.load_session(payload.session_id)
     if session is None:

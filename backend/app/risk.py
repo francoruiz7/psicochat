@@ -1,17 +1,16 @@
 """
-Detección de riesgo (Fase 3).
+Risk detection (self-harm/suicide/violence/immediate danger).
 
-Corre como una capa ADICIONAL a las instrucciones que ya tiene el propio
-system prompt (sección "CUANDO ESTÉ MUY ANGUSTIADO" en
-prompts/system_prompt.txt) — no la reemplaza. La idea es no depender
-únicamente de que el modelo conversacional principal "se acuerde" de
-manejar bien una señal de riesgo en el texto libre de su respuesta: acá
-se clasifica el mensaje de la persona de forma explícita y separada, para
-poder disparar el banner de recursos de ayuda en la interfaz de forma
-determinística.
+Runs as an ADDITIONAL layer to what the system prompt itself already
+asks for (see the "CUANDO ESTÉ MUY ANGUSTIADO" section in
+prompts/system_prompt.txt) — it doesn't replace it. The idea is to not
+rely solely on the main conversational model "remembering" to handle a
+risk signal well in its free-text response: here the person's message is
+classified explicitly and separately, so the help-resources banner can
+be triggered deterministically in the UI.
 
-Usa el modelo auxiliar (barato) porque es una clasificación simple, no
-requiere la profundidad del modelo conversacional principal.
+Uses the auxiliary (cheap) model since this is a simple classification
+task, it doesn't need the depth of the main conversational model.
 """
 
 import json
@@ -22,6 +21,8 @@ from .config import OPENAI_API_KEY, OPENAI_AUXILIARY_MODEL
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# NOTE: this prompt is functional (it classifies the person's Spanish
+# message), so it's kept in Spanish rather than translated.
 RISK_CLASSIFIER_PROMPT = """\
 Sos un clasificador de seguridad para una app de apoyo terapéutico \
 conversacional.
@@ -57,8 +58,8 @@ def assess_risk(message: str) -> bool:
         data = json.loads(completion.choices[0].message.content)
         return bool(data.get("risk", False))
     except Exception:
-        # Fail-safe: si el clasificador falla técnicamente (timeout, error
-        # de red, JSON inválido), no bloqueamos la conversación ni
-        # rompemos el chat. Queda como respaldo la instrucción del propio
-        # system prompt principal para estos casos.
+        # Fail-safe: if the classifier fails for technical reasons
+        # (timeout, network error, invalid JSON), don't block the
+        # conversation or break the chat. The main system prompt's own
+        # instruction for these cases still acts as a fallback.
         return False

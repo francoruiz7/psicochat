@@ -49,7 +49,7 @@ export default function Onboarding({ onAccess }) {
     );
   }
 
-  // Pantalla inicial: elegir entre login o signup.
+  // Initial screen: choose between login or signup.
   if (mode === null) {
     return (
       <div className="onboarding">

@@ -1,78 +1,87 @@
-# PromptPsyco
+# PsicoChat
 
-Web para conversar con una IA (vía API de OpenAI) como espacio de apoyo
-terapéutico. Onboarding mínimo (nombre + edad, sin condicionar el sistema
-con más datos), sesiones separadas por día pero con memoria de fondo entre
-sesiones.
+A web app to talk with an AI (via the OpenAI API) as a therapeutic
+support space. Minimal onboarding (name + age only, so as not to bias
+the system with extra data), sessions that feel discrete day-to-day but
+share memory in the background.
 
-Ver también [`CASE_STUDY.md`](./CASE_STUDY.md) — resumen de decisiones de
-diseño en formato portfolio.
+See also [`CASE_STUDY.md`](./CASE_STUDY.md) — a portfolio-style summary
+of the design decisions behind this project.
 
-## Estado: las 4 fases completas
+## Status: all 4 phases complete, plus a login/signup split
 
-**Fase 1 — núcleo funcional:**
-- Backend FastAPI con gate de edad (`/onboarding`) y endpoint de chat (`/chat`)
-- El system prompt vive en `backend/prompts/system_prompt.txt`
-- Frontend React (Vite) con dos pantallas: onboarding y chat
+**Phase 1 — core functionality:**
+- FastAPI backend with an age gate (`/onboarding`) and a chat endpoint (`/chat`)
+- The system prompt lives in `backend/prompts/system_prompt.txt` (kept out
+  of the public repo — see `system_prompt.example.txt`)
+- React (Vite) frontend with two screens: onboarding and chat
 
-**Fase 2 — memoria y continuidad:**
-- Campo `username` + `password` en el onboarding: identifican tu perfil
-  evolutivo entre sesiones y entre dispositivos. La contraseña se guarda
-  hasheada (PBKDF2-HMAC-SHA256 con salt) — nunca en texto plano. La
-  primera vez que usás un username, esa contraseña queda fijada; las
-  siguientes veces tenés que repetirla o el sistema rechaza el acceso.
-- Perfil evolutivo por `username`, con `profile_summary` actualizado al
-  cerrar cada sesión.
-- Botón "Finalizar sesión de hoy" + respaldo automático vía
-  `navigator.sendBeacon` si se cierra la pestaña sin tocar el botón.
-- El `profile_summary` se agrega siempre DESPUÉS del bloque estático del
-  system prompt, para no romper el prompt caching de OpenAI.
+**Phase 2 — memory and continuity:**
+- `username` + `password` fields at onboarding identify the person's
+  evolving profile across sessions and devices. The password is stored
+  hashed (PBKDF2-HMAC-SHA256 with a salt) — never in plain text.
+- An evolving profile per `username`, with a `profile_summary` updated
+  every time a session is closed.
+- A "Finalizar sesión de hoy" (end today's session) button, plus an
+  automatic fallback via `navigator.sendBeacon` if the tab is closed
+  without pressing it.
+- The `profile_summary` is always appended AFTER the static block of the
+  system prompt, so it doesn't break OpenAI's prompt caching.
 
-**Fase 3 — riesgo, robustez y streaming:**
-- **Detección de riesgo** (`backend/app/risk.py`): cada mensaje se
-  clasifica con el modelo auxiliar (barato) para detectar señales de
-  autolesión, ideación suicida, riesgo hacia terceros o peligro
-  inmediato. Es una capa ADICIONAL a lo que ya pide el propio system
-  prompt en su sección "CUANDO ESTÉ MUY ANGUSTIADO" — no la reemplaza. Si
-  el clasificador falla técnicamente, no bloquea la conversación
-  (fail-safe).
-- **Recursos de ayuda geolocalizados** (`backend/app/resources.py`): si se
-  detecta riesgo, se arma una lista de recursos según la ciudad cargada en
-  el onboarding (mapeo simple por palabras clave — hoy solo distingue
-  Argentina de un fallback genérico internacional). Se muestra como
-  banner fijo en la interfaz, no solo como texto del modelo.
-- **Streaming de respuesta** (`POST /chat/stream`): la respuesta se
-  muestra token a token vía Server-Sent Events. Sigue existiendo
-  `POST /chat` sin streaming como alternativa simple para debugging.
-- **Manejo de errores**: timeout configurable en las llamadas a OpenAI,
-  mensajes amigables si la API falla, sin romper la sesión.
+**Phase 3 — risk detection, robustness and streaming:**
+- **Risk detection** (`backend/app/risk.py`): every message is classified
+  with the cheaper auxiliary model to detect signs of self-harm, suicidal
+  ideation, risk toward others, or immediate danger. This is an
+  ADDITIONAL layer on top of what the system prompt itself already asks
+  for in its own "CUANDO ESTÉ MUY ANGUSTIADO" section — it doesn't
+  replace it. If the classifier fails technically, it doesn't block the
+  conversation (fail-safe).
+- **Geolocated help resources** (`backend/app/resources.py`): if risk is
+  detected, a list of resources is put together based on the city
+  entered at onboarding (simple keyword matching — currently only
+  distinguishes Argentina from a generic international fallback). Shown
+  as a fixed banner in the UI, not just as text from the model.
+- **Streaming responses** (`POST /chat/stream`): the model's reply is
+  shown token by token via Server-Sent Events. `POST /chat` (no
+  streaming) still exists as a simpler alternative for debugging.
+- **Error handling**: configurable timeout on OpenAI calls, friendly
+  error messages if the API fails, without breaking the session.
 
-**Fase 4 — SQLite y deploy:**
-- Storage migrado de JSON plano a **SQLite** (`backend/promptpsyco.db`,
-  un solo archivo), con la misma interfaz pública que ya usaba el resto
-  del código — no hizo falta tocar `chat.py`.
-- `Procfile` y `render.yaml` para desplegar el backend en Render o
+**Phase 4 — SQLite and deploy:**
+- Storage migrated from plain JSON files to **SQLite**
+  (`backend/promptpsyco.db`, a single file), with the same public
+  interface the rest of the code already used — no need to touch
+  `chat.py`.
+- `Procfile` and `render.yaml` to deploy the backend on Render or
   Railway.
-- Preparado para desplegar el frontend en Vercel (detecta Vite
-  automáticamente, sin configuración extra más que la variable de
-  entorno).
+- Ready to deploy the frontend on Vercel (auto-detects Vite, no extra
+  config beyond one environment variable).
 
-## Cómo correrlo local
+**Added afterward — separate login/signup:**
+- The onboarding screen now asks first whether the person already has an
+  account ("Ya tengo cuenta") or is new ("Soy nuevo/a"). Returning users
+  only need username + password; new users also provide name, age and
+  city.
+- No password recovery — acceptable for personal, single-user use;
+  flagged as a real gap if this were ever opened to more people.
+
+## Running it locally
 
 ### Backend
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # en Windows: venv\Scripts\activate
+source venv/bin/activate  # on Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# completar OPENAI_API_KEY en .env
+# fill in OPENAI_API_KEY in .env, and provide your own
+# prompts/system_prompt.txt (see system_prompt.example.txt)
 uvicorn main:app --reload --port 8000
 ```
 
-Al arrancar, se crea automáticamente `backend/promptpsyco.db` (SQLite) si
-no existe — no hace falta ningún paso manual de migración.
+`backend/promptpsyco.db` (SQLite) is created automatically on first run
+— no manual migration step needed.
 
 ### Frontend
 
@@ -83,83 +92,80 @@ cp .env.example .env
 npm run dev
 ```
 
-Abrir `http://localhost:5173`.
+Open `http://localhost:5173`.
 
-## Cómo probar todo (paso a paso)
+## How to test the full flow
 
-1. Levantar backend y frontend (pasos de arriba).
-2. Completar el onboarding con nombre, un nombre de usuario, una
-   contraseña, tu edad, y opcionalmente tu ciudad.
-3. Mandar un par de mensajes — la respuesta debería ir apareciendo
-   palabra por palabra (streaming), no de golpe.
-4. Click en "Finalizar sesión de hoy".
-5. Recargar la página (`F5`) y volver a entrar con el **mismo usuario y
-   contraseña**. En el próximo mensaje, mencionar algo relacionado a lo
-   hablado antes — el modelo debería poder retomarlo (memoria entre
-   sesiones funcionando).
-6. Probar entrar con el username correcto pero una contraseña distinta —
-   tiene que rechazar el acceso.
-7. Escribir un mensaje con una señal de riesgo explícita — debería
-   aparecer el banner de recursos de ayuda arriba de los mensajes, además
-   de la respuesta normal del modelo. Probar también una frase claramente
-   no literal ("esto me mata de la risa") para confirmar que no dispara
-   el banner sin necesidad.
-8. Revisar `backend/promptpsyco.db` con cualquier visor de SQLite (por
-   ejemplo, la extensión "SQLite Viewer" de VS Code, o `sqlite3
-   promptpsyco.db` desde la terminal) para ver las tablas `profiles`,
-   `sessions` y `messages`.
+1. Start backend and frontend (steps above).
+2. On the onboarding screen, choose "Soy nuevo/a" and complete name,
+   username, password, age, and optionally city.
+3. Send a couple of messages — the reply should appear word by word
+   (streaming), not all at once.
+4. Click "Finalizar sesión de hoy" — it should return automatically to
+   the initial screen.
+5. Choose "Ya tengo cuenta" this time, with the same username and
+   password. In the next message, mention something related to the
+   previous session to check whether the model picks it up (cross-session
+   memory).
+6. Try logging in with the right username but a wrong password — it
+   should be rejected.
+7. Write a message with an explicit risk signal — a help-resources banner
+   should appear above the messages, in addition to the model's normal
+   reply. Also try a clearly non-literal phrase to confirm the banner
+   doesn't trigger unnecessarily.
 
-## Cómo desplegarlo (cuando quieras mostrarlo público)
+## How to deploy (when you're ready to make it public)
 
-### Backend (Render o Railway)
+### Backend (Render or Railway)
 
-- **Render**: conectar el repo, elegir la carpeta `backend/` como raíz del
-  servicio. `render.yaml` ya deja definidas las variables de entorno
-  (`OPENAI_API_KEY` hay que cargarla a mano en el dashboard, nunca en el
-  repo). **Importante**: el plan gratuito de Render tiene filesystem
-  efímero — el archivo `promptpsyco.db` se pierde en cada redeploy o
-  reinicio, salvo que agregues un disco persistente (función paga). Para
-  una demo de portfolio esto puede ser aceptable; para uso real hay que
-  sumar el disco o migrar a una base de datos gestionada.
-- **Railway**: detecta automáticamente el `Procfile`. Los volúmenes
-  persistentes de Railway sí están disponibles en su plan gratuito con
-  límites — mejor opción si querés que el SQLite sobreviva a reinicios
-  sin pagar de entrada.
+- **Render**: connect the repo, pick `backend/` as the service root.
+  `render.yaml` already defines the environment variables
+  (`OPENAI_API_KEY` has to be entered manually in the dashboard, never in
+  the repo). **Important**: Render's free tier has an ephemeral
+  filesystem — `promptpsyco.db` is lost on every redeploy or restart
+  unless you add a persistent disk (a paid feature). Acceptable for a
+  portfolio demo; for real use, add the disk or migrate to a managed
+  database.
+- **Railway**: auto-detects the `Procfile`. Railway's persistent volumes
+  are available even on its free tier with limits — a better option if
+  you want the SQLite file to survive restarts without paying upfront.
 
 ### Frontend (Vercel)
 
-- Conectar el repo, elegir la carpeta `frontend/` como raíz. Vercel
-  detecta Vite automáticamente.
-- Configurar la variable de entorno `VITE_API_BASE` en el dashboard de
-  Vercel, apuntando a la URL pública del backend ya desplegado.
-- En el backend, actualizar `FRONTEND_ORIGIN` a la URL de Vercel (para que
-  el CORS lo permita).
+- Connect the repo, pick `frontend/` as the root. Vercel auto-detects
+  Vite.
+- Set the `VITE_API_BASE` environment variable in the Vercel dashboard,
+  pointing to the deployed backend's public URL.
+- On the backend, update `FRONTEND_ORIGIN` to the Vercel URL (so CORS
+  allows it).
 
-## Sobre el costo (uso personal, con API key propia)
+## About cost (personal use, with your own API key)
 
-- El system prompt (~5.000 tokens) se manda en cada llamada, pero OpenAI
-  cachea automáticamente el prefijo estático repetido entre llamadas
-  (grandes descuentos sobre esa porción) — por eso el resumen de perfil se
-  agrega siempre DESPUÉS del bloque fijo, nunca mezclado adentro.
-- El resumen de sesión y la detección de riesgo usan el modelo más
-  barato (`gpt-4o-mini`), no el modelo principal.
-- Para uso personal esporádico, el gasto total estimado es de pocos
-  dólares por mes. El límite de gasto mensual en el dashboard de OpenAI
-  es buena práctica igual, por las dudas.
+- The system prompt (~5,000 tokens) is sent on every call, but OpenAI
+  automatically caches the repeated static prefix across calls (a large
+  discount on that portion) — that's why the profile summary is always
+  appended AFTER the fixed block, never mixed in.
+- Session summaries and risk detection use the cheaper model
+  (`gpt-4o-mini`), not the main one.
+- For occasional personal use, total estimated cost is a few dollars a
+  month. Setting a monthly spending cap in the OpenAI dashboard is still
+  good practice, just in case.
 
-## Decisiones de diseño a tener presentes
+## Design decisions worth keeping in mind
 
-- **Nombre y edad únicamente en el onboarding**: decisión deliberada para no
-  condicionar al sistema con información de más.
-- **Menor de edad → no arranca**: si la edad ingresada es menor a 18, no se
-  crea sesión ni perfil, ni se guarda ningún dato del intento.
-- **Sesión (UI) vs. memoria (contexto)**: cada ingreso es una sesión nueva
-  visualmente (saludo fresco), pero de fondo el sistema acumula un perfil
-  evolutivo a partir de resúmenes de sesiones anteriores.
-- **API key propia, no escalable a otros usuarios**: aceptado a propósito
-  para esta etapa (portfolio / uso personal). Evaluar a futuro membresía
-  paga (Stripe) o que cada usuario cargue su propia key (BYOK).
-- **Username + contraseña sin recuperación**: suficiente para uso
-  personal; sin auth real si el proyecto se abriera a más gente.
-- **Ciudad opcional en onboarding**: para poder sugerir recursos de ayuda
-  geolocalizados sin pedir ubicación exacta del navegador.
+- **Only name and age at onboarding**: a deliberate choice to avoid
+  biasing the system with extra information.
+- **Underage → doesn't start**: if the entered age is under 18, no
+  session or profile is created, and nothing about the attempt is
+  stored.
+- **Session (UI) vs. memory (context)**: every visit is a fresh session
+  visually (a new greeting), but in the background the system accumulates
+  an evolving profile from summaries of previous sessions.
+- **Own API key, not built to scale to other users**: accepted on
+  purpose for this stage (portfolio / personal use). Evaluate a paid
+  membership (Stripe) or a bring-your-own-key (BYOK) scheme later if this
+  ever opens up to more people.
+- **Username + password with no recovery**: enough for personal use; not
+  real auth if this project were opened up to more people.
+- **Optional city at onboarding**: so geolocated help resources can be
+  suggested without asking for exact browser location.

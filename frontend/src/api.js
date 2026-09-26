@@ -27,7 +27,7 @@ export async function closeSession({ sessionId }) {
 }
 
 /**
- * Consume el endpoint /chat/stream (Server-Sent Events sobre POST).
+ * Consumes the /chat/stream endpoint (Server-Sent Events over POST).
  * callbacks: { onToken(text), onRisk(resources), onDone(riskFlag), onError(message) }
  */
 export async function streamChat({ sessionId, message }, callbacks) {

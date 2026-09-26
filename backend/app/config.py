@@ -1,15 +1,11 @@
 """
-Configuración central del backend.
+Central backend configuration.
 
-Fase 2: se suma el perfil evolutivo (resumen acumulado entre sesiones).
-
-NOTA PARA FASES FUTURAS:
-- Falta incorporar la inyección de nombre/edad al prompt base (mencionada
-  pero todavía no redactada). Cuando se agregue, sumarla en
-  build_system_prompt DESPUÉS del bloque estático de SYSTEM_PROMPT, igual
-  que el profile_summary — así no se rompe el prompt caching del bloque
-  fijo (ver nota de costos: el caching de OpenAI requiere que el prefijo
-  se mantenga idéntico entre llamadas).
+NOTE FOR FUTURE PHASES:
+- Name/age injection into the base prompt is still pending (mentioned
+  but not yet written). When added, it should go in build_system_prompt,
+  AFTER the static SYSTEM_PROMPT block — same as profile_summary — so it
+  doesn't break OpenAI's prompt caching on the fixed prefix.
 """
 
 import os
@@ -24,29 +20,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
-# Modelo liviano para tareas auxiliares (Fase 3: detección de riesgo,
-# Fase 2: generación de resúmenes). Separado del modelo conversacional
-# principal para poder usar algo más barato/rápido en esas tareas.
+# Cheaper/lighter model for auxiliary tasks (risk detection, session
+# summary generation). Kept separate from the main conversational model
+# so those tasks can use something cheaper without affecting quality of
+# the main chat responses.
 OPENAI_AUXILIARY_MODEL = os.getenv("OPENAI_AUXILIARY_MODEL", "gpt-4o-mini")
 
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
-# Fase 3: timeout de las llamadas a OpenAI, para no dejar al usuario
-# esperando indefinidamente si la API no responde.
+# Timeout for OpenAI API calls, so the user isn't left waiting
+# indefinitely if the API doesn't respond.
 OPENAI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "30"))
 
 MIN_AGE = 18
 
-# Tope aproximado (en palabras) para el perfil evolutivo acumulado.
-# Al regenerarlo en cada cierre de sesión, le pedimos al modelo auxiliar
-# que condense en vez de solo agregar, para que esto no crezca sin límite
-# turno a turno y siga siendo barato de inyectar en cada sesión nueva.
-PROFILE_SUMMARY_MAX_WORDS = 400
-
 SYSTEM_PROMPT_PATH = BASE_DIR / "prompts" / "system_prompt.txt"
 
-# Fase 4: storage pasó de JSON plano a SQLite. Un solo archivo de base de
-# datos para sesiones, mensajes y perfiles.
+# Storage: SQLite, a single database file for sessions, messages and
+# profiles.
 DB_PATH = BASE_DIR / "promptpsyco.db"
 
 
@@ -56,6 +47,10 @@ def load_system_prompt() -> str:
 
 SYSTEM_PROMPT = load_system_prompt()
 
+# NOTE: this header text is injected into the model's own system prompt
+# (it shapes model behavior, it's not UI text), so it's kept in Spanish
+# to match the rest of the therapeutic prompt, which is written for a
+# Spanish-speaking conversation.
 PROFILE_SECTION_HEADER = (
     "\n\n---\n\n"
     "CONTEXTO DE SESIONES ANTERIORES\n\n"
@@ -69,9 +64,9 @@ PROFILE_SECTION_HEADER = (
 
 def build_system_prompt(profile_summary: Optional[str]) -> str:
     """
-    Arma el system prompt de una sesión. El bloque SYSTEM_PROMPT va
-    siempre primero e idéntico entre llamadas (para aprovechar el
-    prompt caching); el resumen de perfil, si existe, se agrega después.
+    Builds a session's system prompt. The static SYSTEM_PROMPT block
+    always goes first and identical across calls (to benefit from prompt
+    caching); the profile summary, if any, is appended after it.
     """
     if not profile_summary:
         return SYSTEM_PROMPT

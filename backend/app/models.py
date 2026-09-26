@@ -5,9 +5,9 @@ from pydantic import BaseModel, Field
 class OnboardingRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=40)
     password: str = Field(..., min_length=4, max_length=100)
-    # Solo se completan en el flujo de "crear cuenta" (signup). En el
-    # flujo de "ya tengo cuenta" (login) van vacíos y se usan los datos
-    # ya guardados en el perfil.
+    # Only filled in during the "signup" flow. In the "login" flow
+    # (existing account) they're left empty and the profile's stored
+    # data is used instead.
     name: Optional[str] = Field(None, max_length=80)
     age: Optional[int] = Field(None, ge=0, le=120)
     city: Optional[str] = Field(None, max_length=120)
@@ -17,12 +17,12 @@ class OnboardingResponse(BaseModel):
     allowed: bool
     session_id: Optional[str] = None
     message: Optional[str] = None
-    # True si el error es recuperable (ej. contraseña incorrecta, se puede
-    # reintentar); False si es un corte definitivo (ej. menor de edad).
+    # True if the error is recoverable (e.g. wrong password, can retry);
+    # False if it's a hard stop (e.g. underage).
     retry: bool = False
-    # Nombre a mostrar en el saludo del chat — viene del backend para que
-    # funcione igual en el flujo de login (donde el frontend no pide el
-    # nombre de nuevo).
+    # Name to show in the chat greeting — comes from the backend so it
+    # also works in the login flow (where the frontend doesn't ask for
+    # the name again).
     name: Optional[str] = None
 
 

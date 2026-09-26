@@ -1,12 +1,12 @@
 """
-Recursos de ayuda mostrados cuando se dispara la detección de riesgo.
+Help resources shown when risk detection triggers.
 
-Versión inicial: mapeo simple por palabras clave sobre el campo "ciudad"
-que la persona cargó en el onboarding (texto libre, opcional). No es
-geolocalización real — es deliberadamente así, para no pedir ubicación
-exacta del navegador. Si el proyecto crece, esto se puede reemplazar por
-una tabla más completa por país, o un servicio externo de directorios de
-líneas de ayuda.
+Initial version: a simple keyword mapping over the "city" field the
+person entered at onboarding (free text, optional). This is
+deliberately not real geolocation — we don't want to ask for exact
+browser location. If the project grows, this can be replaced with a
+more complete per-country table, or an external help-line directory
+service.
 """
 
 from typing import Optional
@@ -16,6 +16,8 @@ ARGENTINA_KEYWORDS = [
     "cordoba", "córdoba", "rosario", "mendoza", "la plata",
 ]
 
+# NOTE: these strings are shown directly to the user in the risk
+# banner, so they're kept in Spanish.
 ARGENTINA_RESOURCES = [
     "Línea 135 (Ciudad de Buenos Aires): atención telefónica gratuita "
     "las 24 horas para crisis de salud mental.",

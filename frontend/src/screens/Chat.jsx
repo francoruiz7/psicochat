@@ -9,7 +9,7 @@ export default function Chat({ sessionId, name, onEnd }) {
     },
   ]);
   const [input, setInput] = useState("");
-  const [streamingText, setStreamingText] = useState(null); // null = no está respondiendo
+  const [streamingText, setStreamingText] = useState(null); // null = not currently responding
   const [riskResources, setRiskResources] = useState(null);
   const [closing, setClosing] = useState(false);
   const scrollRef = useRef(null);
@@ -64,7 +64,7 @@ export default function Chat({ sessionId, name, onEnd }) {
     try {
       await closeSession({ sessionId });
     } catch (err) {
-      // No es bloqueante: igual volvemos al inicio.
+      // Not blocking: we return to the start screen either way.
     } finally {
       onEnd?.();
     }
