@@ -1,0 +1,24 @@
+# system_prompt.example.txt
+
+Este es un placeholder. El archivo real (system_prompt.txt) contiene el
+prompt completo, trabajado específicamente para este proyecto, y no se
+sube al repositorio público por ser contenido sensible/personal.
+
+Para correr el proyecto localmente, reemplazá este archivo por tu propio
+system prompt, o escribí uno propio siguiendo esta estructura general:
+
+- Enfoque terapéutico conversacional, integrativo con eje
+  psicodinámico/psicoanalítico
+- Conversación breve y progresiva, no un monólogo largo por turno
+- Las interpretaciones se presentan como hipótesis a chequear con la
+  persona, nunca como afirmaciones cerradas
+- Validación sin complacencia: se puede sostener una lectura distinta a
+  la que trae la persona, con cuidado
+- Instrucciones explícitas de contención ante señales de angustia aguda,
+  autolesión o riesgo (ver también la detección de riesgo en
+  backend/app/risk.py, que es una capa aparte y no depende de esto)
+- Sección de memoria y continuidad: instrucciones sobre qué priorizar al
+  recibir el resumen de sesiones anteriores (backend/app/summary.py)
+
+El resto del proyecto (backend, frontend, detección de riesgo, memoria)
+funciona igual sin importar el contenido específico de este archivo.

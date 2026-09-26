@@ -1,0 +1,6 @@
+.env
+promptpsyco.db
+prompts/system_prompt.txt
+venv/
+__pycache__/
+*.pyc

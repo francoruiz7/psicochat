@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: promptpsyco-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: OPENAI_AUXILIARY_MODEL
+        value: gpt-4o-mini
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: OPENAI_REQUEST_TIMEOUT_SECONDS
+        value: "30"
+    disk:
+      name: promptpsyco-data
+      mountPath: /opt/render/project/src/backend
+      sizeGB: 1
