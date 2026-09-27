@@ -8,6 +8,8 @@ share memory in the background.
 See also [`CASE_STUDY.md`](./CASE_STUDY.md) — a portfolio-style summary
 of the design decisions behind this project.
 
+![PsicoChat demo](./docs/demo.gif)
+
 ## Status: all 4 phases complete, plus a login/signup split
 
 **Phase 1 — core functionality:**
